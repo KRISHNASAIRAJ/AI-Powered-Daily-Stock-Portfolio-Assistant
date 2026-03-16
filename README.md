@@ -4,7 +4,6 @@ An **AI-driven portfolio monitoring system** that automatically analyzes stock h
 
 Built using **n8n, Google Gemini AI, Google Sheets, and NSE APIs**, this automation eliminates manual portfolio tracking and provides **smart daily insights.**
 
-
 ---
 
 # 🚀 Project Overview
