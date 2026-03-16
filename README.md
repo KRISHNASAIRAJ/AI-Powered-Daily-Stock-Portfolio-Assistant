@@ -50,6 +50,10 @@ Additionally, combining **portfolio data with market sentiment** requires multip
 
 # 💡 Solution
 
+Below is the visual representation of the n8n automation workflow.
+
+![n8n Workflow](https://github.com/KRISHNASAIRAJ/AI-Powered-Daily-Stock-Portfolio-Assistant/blob/main/Workflow.jpeg)
+
 This workflow automates portfolio monitoring by combining:
 
 • **Portfolio Data (Google Sheets)**  
