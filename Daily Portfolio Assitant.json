@@ -1,0 +1,338 @@
+{
+  "name": "Daily Portfolio Assitant",
+  "nodes": [
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        544,
+        368
+      ],
+      "id": "bcd5c383-d989-4a09-8c63-3c5c9db5e5d8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "mZFOVnFUoSQFPagz",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.nseindia.com/api/fiidiiTradeReact",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -96,
+        112
+      ],
+      "id": "5a04080d-b791-4ff4-90c0-2de90f5714cf",
+      "name": "FII/DII Data API"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "13Cjqyy91k6ZFsTx97_DHdQR_TohsCztOk9KVlwF2c7c",
+          "mode": "list",
+          "cachedResultName": "Sai Raj's Tracker",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13Cjqyy91k6ZFsTx97_DHdQR_TohsCztOk9KVlwF2c7c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 661345784,
+          "mode": "list",
+          "cachedResultName": "Equity-Main",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13Cjqyy91k6ZFsTx97_DHdQR_TohsCztOk9KVlwF2c7c/edit#gid=661345784"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -96,
+        -80
+      ],
+      "id": "6078d9f9-7447-427d-a05c-3373d76335ff",
+      "name": "Portfolio Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "HC1Imlu7x97B9uff",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 19
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        16
+      ],
+      "id": "7d0737a5-c622-442b-bb8d-21fc1c4ea134",
+      "name": "Daily Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "let netWorth = 0;\nlet totalInvestment = 0;\nlet unrealizedPL = 0;\nlet reitValue = 0;\n\nlet portfolio = [];\n\nfor (const item of $input.all()) {\n\n  const price = Number(item.json[\"CMP\"]);\n  const qty = Number(item.json[\"Holding Units\"]);\n  const avgPrice = Number(item.json[\"Buy Price\"]);\n  const industry = item.json[\"Industry\"];\n\n  const currentValue = Math.round(price * qty);\n  const investment = Math.round(avgPrice * qty);\n  const pl = Math.round(currentValue - investment);\n\n  if (industry === \"REITS\") {\n    reitValue += currentValue;\n  } else {\n    netWorth += currentValue;\n    totalInvestment += investment;\n    unrealizedPL += pl;\n  }\n\n  // Only include active holdings\n  if (qty > 0) {\n    portfolio.push({\n      name: item.json[\"Name\"],\n      sector: item.json[\"Sector\"],\n      industry: item.json[\"Industry\"],\n      qty,\n      daysChange:item.json[\"Day's Change\"]\n      ,\n      currentValue,\n      investment,\n      pl,\n      plPercent: item.json[\"Profit/Loss Percentage\"]\n    });\n  }\n}\n\nreturn [{\n  json: {\n    netWorth: Math.round(netWorth),\n    totalInvestment: Math.round(totalInvestment),\n    unrealizedPL: Math.round(unrealizedPL),\n    reitValue: Math.round(reitValue),\n    portfolio\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -80
+      ],
+      "id": "39e898a4-218e-4f98-9e49-63af7217ef29",
+      "name": "Parsing Portfolio Metrics"
+    },
+    {
+      "parameters": {
+        "jsCode": "let fiiFlow = 0;\nlet diiFlow = 0;\nlet datee = \"\";\n\nfor (const item of $input.all()) {\n\n  if (!datee) {\n    datee = item.json.date; // capture date once\n  }\n\n  if (item.json.category === \"FII/FPI\") {\n    fiiFlow = Math.round(Number(item.json.netValue));\n  }\n\n  if (item.json.category === \"DII\") {\n    diiFlow = Math.round(Number(item.json.netValue));\n  }\n}\n\nreturn [{\n  json: {\n    datee,\n    fiiFlow,\n    diiFlow,\n    netFIIDII: fiiFlow + diiFlow\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        112
+      ],
+      "id": "8d828b29-f4fd-4fb9-aece-9c0f840eea63",
+      "name": "Parsing FII/DII Data"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        352,
+        16
+      ],
+      "id": "868b40eb-1eaa-4ef7-9ac7-ddc033bb6763",
+      "name": "Formatting Data"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate today's portfolio insight report.\n\nPortfolio Data:\n{{ JSON.stringify($json.portfolio, null, 2) }}\n\nPortfolio Metrics:\nNet Worth: ₹{{$json.netWorth}}\nTotal Investment: ₹{{$json.totalInvestment}}\nUnrealized P&L: ₹{{$json.unrealizedPL}}\nREIT Exposure: ₹{{$json.reitValue}}\n\nInstitutional Market Activity:\nFII Net Flow: {{$json.fiiFlow}} Cr\nDII Net Flow: {{$json.diiFlow}} Cr\nNet Institutional Flow: {{$json.netFIIDII}} Cr\n\nProvide the report in the required format.",
+        "options": {
+          "systemMessage": "You are a financial portfolio analysis assistant.\n\nYou receive a table representing a personal stock portfolio.\nEach row contains fields such as:\nname, sector, industry, qty, daysChange, currentValue, investment, pl, and plPercent.\n\nImportant rules:\n- Only analyze rows where \"qty\" > 0.\n- Ignore rows where qty = 0.\n- Treat assets with industry \"REITS\" as real estate exposure.\n\nDaily performance must ONLY be determined using the field \"daysChange\".\n\nTo determine the daily performers:\n1. Read all rows where qty > 0.\n2. Compare the numeric values in the \"daysChange\" field.\n3. Best performer of the day = stock with the HIGHEST value of \"daysChange\".\n4. Worst performer of the day = stock with the LOWEST value of \"daysChange\".\n\nImportant rule:\nEven if all values are negative, the best performer is the stock with the least negative value.\n\nExample:\n-0.47% is better than -3.58%.\n\nDo NOT use \"pl\" or \"plPercent\" when determining daily performance.\n\nGenerate a concise daily report suitable for Slack or Telegram.\n\nUse EXACTLY the following structure:\n\n🏆 Best Performer Of The Day\nStock with the highest numeric value in the \"daysChange\" field. Include the percentage.\n\n📉 Worst Performer Of The Day\nStock with the lowest numeric value in the \"daysChange\" field. Include the percentage.\n\n⚠ Risk / Concentration\nHighlight sector concentration or overexposure in the portfolio.\n\n📈 Market Context\nInterpret institutional activity (FII/DII flows) and overall market sentiment.\n\n📊 Portfolio Summary\nSummarize overall portfolio performance using the provided portfolio metrics.\n\nCurrency is rupees.\n\nKeep the response concise (6–8 lines total).\nEach section should contain 1–2 short sentences.\nDo not provide buy/sell advice."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        592,
+        192
+      ],
+      "id": "8781f1ce-c12d-4a97-9dee-6b0015e4faee",
+      "name": "Portfolio AI Assistant",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        928,
+        32
+      ],
+      "id": "d0721a38-8617-4997-8c9c-0f06d6a736aa",
+      "name": "Merging FII/DII Data With Assitant's Report"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#equity-daily-update",
+          "mode": "name"
+        },
+        "text": "=📅 *Daily Portfolio Report* — {{$json.datee}}\n\n━━━━━━━━━━━━━━━━━━\n💼 *Portfolio Overview*\n\n💰 *Total Investment:* ₹{{$json.totalInvestment}}\n📊 *Current Value:* ₹{{$json.netWorth}}\n📈 *Unrealized P&L:* ₹{{$json.unrealizedPL}}\n🏢 *REIT Exposure:* ₹{{$json.reitValue}}\n\n━━━━━━━━━━━━━━━━━━\n📊 *Institutional Activity*\n\n🟢 *DII Net Buying:* ₹{{$json.diiFlow}} Cr\n🔴 *FII Net Selling:* ₹{{$json.fiiFlow}} Cr\n⚖️ *Net Flow:* ₹{{$json.netFIIDII}} Cr\n\n━━━━━━━━━━━━━━━━━━\n🤖 *AI Portfolio Insight*\n\n{{$json.output}}\n\n━━━━━━━━━━━━━━━━━━",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        32
+      ],
+      "id": "57ebca88-7f51-45d3-a33d-6bd40f2ff4c5",
+      "name": "Final Notification",
+      "webhookId": "e5f8eef0-6690-4451-81c7-f6cf8e5a8a84",
+      "credentials": {
+        "slackApi": {
+          "id": "yWOGlaBhi5D2GSNo",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Portfolio AI Assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FII/DII Data API": {
+      "main": [
+        [
+          {
+            "node": "Parsing FII/DII Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Portfolio Data": {
+      "main": [
+        [
+          {
+            "node": "Parsing Portfolio Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Portfolio Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "FII/DII Data API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsing Portfolio Metrics": {
+      "main": [
+        [
+          {
+            "node": "Formatting Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsing FII/DII Data": {
+      "main": [
+        [
+          {
+            "node": "Formatting Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Formatting Data": {
+      "main": [
+        [
+          {
+            "node": "Portfolio AI Assistant",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merging FII/DII Data With Assitant's Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Portfolio AI Assistant": {
+      "main": [
+        [
+          {
+            "node": "Merging FII/DII Data With Assitant's Report",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merging FII/DII Data With Assitant's Report": {
+      "main": [
+        [
+          {
+            "node": "Final Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Notification": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Kolkata",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "0fe7cce5-d426-4984-a449-a8680681ed14",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "13bffb07e3a70917713c0176bc16e43c3e1912452e2b916fcc9c080282629ad4"
+  },
+  "id": "BwCq9077J2ERPhLf",
+  "tags": []
+}
